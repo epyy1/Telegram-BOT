@@ -25,7 +25,7 @@ function detectPlatform(url) {
 }
 
 async function downloadVideo(url) {
-  return new Promise((resolve, reject) => {
+  try {
     const timestamp = Date.now();
     const outputPath = path.join(__dirname, "downloads", `${timestamp}.mp4`);
 
@@ -35,52 +35,65 @@ async function downloadVideo(url) {
 
     const command = `yt-dlp -f "best[ext=mp4]" -o "${outputPath}" --no-warnings "${url}"`;
 
-    exec(command, (error, stdout, stderr) => {
-      if (error) {
-        console.error(`WOMP WOMP: ${error}`);
-        reject(error);
-        return;
-      }
+    return new Promise((resolve, reject) => {
+      exec(command, (error, stdout, stderr) => {
+        if (error) {
+          console.error(`Error downloading video: ${error}`);
+          reject(error);
+          return;
+        }
 
-      resolve(outputPath);
+        resolve(outputPath);
+      });
     });
-  });
+  } catch (error) {
+    console.error(`Womp Womp: ${error}`);
+    throw error;
+  }
 }
 
 function checkFileSize(filePath) {
-  const stats = fs.statSync(filePath);
-  const fileSizeInBytes = stats.size;
-  const fileSizeInMegabytes = fileSizeInBytes / (1024 * 1024);
+  try {
+    const stats = fs.statSync(filePath);
+    const fileSizeInBytes = stats.size;
+    const fileSizeInMegabytes = fileSizeInBytes / (1024 * 1024);
 
-  return fileSizeInMegabytes <= 50;
+    return fileSizeInMegabytes <= 50;
+  } catch (error) {
+    console.error(`Error checking file size: ${error}`);
+    throw error;
+  }
 }
 
 async function compressVideo(inputPath) {
-  return new Promise((resolve, reject) => {
+  try {
     const outputPath = inputPath.replace(".mp4", "_compressed.mp4");
 
     const ffmpeg = require("fluent-ffmpeg");
-    ffmpeg(inputPath)
-      .output(outputPath)
-      .videoCodec("libx264")
-      .audioCodec("aac")
-      .outputOptions("-preset fast")
-      .on("end", () => {
-        fs.unlinkSync(inputPath);
-        resolve(outputPath);
-      })
-      .on("error", (err) => {
-        console.error("Error compressing video:", err);
-        reject(err);
-      })
-      .run();
-  });
+    return new Promise((resolve, reject) => {
+      ffmpeg(inputPath)
+        .output(outputPath)
+        .videoCodec("libx264")
+        .audioCodec("aac")
+        .outputOptions("-preset fast")
+        .on("end", () => {
+          fs.unlinkSync(inputPath);
+          resolve(outputPath);
+        })
+        .on("error", (err) => {
+          console.error("Error compressing video:", err);
+          reject(err);
+        })
+        .run();
+    });
+  } catch (error) {
+    console.error(`Error compressing video: ${error}`);
+    throw error;
+  }
 }
 
 bot.start((ctx) => {
-  ctx.reply(
-    "Welcome to the Video Downloader Bot 🎬\n\nSend me a link from YouTube, TikTok,  Instagram,  or x , and I'll download the video for you."
-  );
+  ctx.reply("Well just  put your link into this bot");
 });
 
 bot.on("text", async (ctx) => {
@@ -89,13 +102,13 @@ bot.on("text", async (ctx) => {
 
   if (!platform) {
     ctx.reply(
-      " Unsupported platform. Please provide a YouTube, TikTok, Instagram, or X URL"
+      "Unsupported platform. Please provide a YouTube, TikTok, Instagram, or X URL"
     );
     return;
   }
 
   try {
-    const processingMsg = await ctx.reply("just fucking wait ");
+    const processingMsg = await ctx.reply("fucking wait ");
 
     const videoPath = await downloadVideo(url);
 
@@ -104,7 +117,7 @@ bot.on("text", async (ctx) => {
         ctx.chat.id,
         processingMsg.message_id,
         null,
-        " Video is too large. bigger than your dick"
+        " Video is too large bigger than your dick !"
       );
 
       const compressedPath = await compressVideo(videoPath);
@@ -128,13 +141,13 @@ bot.on("text", async (ctx) => {
     await ctx.telegram.deleteMessage(ctx.chat.id, processingMsg.message_id);
   } catch (error) {
     console.error("Error:", error);
-    ctx.reply(" fucking  make sure the URL is correct and try again.");
+    ctx.reply("Error processing your request. Please try again.");
   }
 });
 
 bot.catch((err, ctx) => {
   console.error(`Error for ${ctx.updateType}:`, err);
-  ctx.reply(" An error occurred while processing your request.");
+  ctx.reply("An error occurred while processing your request.");
 });
 
 bot.launch().then(() => {
